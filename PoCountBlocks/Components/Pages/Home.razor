@@ -1,0 +1,100 @@
+﻿@page "/"
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+@if (gameStarted && showUI)
+{
+    <div>
+        <input type="range" min="50" max="100" @bind="userGuess" />
+        <span>@userGuess</span>
+        <button @onclick="SubmitGuess">Submit</button>
+    </div>
+}
+
+
+@if (!gameStarted || !awaitingUserGuess && !string.IsNullOrEmpty(feedbackMessage))
+{
+    <div class="feedback">
+        @feedbackMessage
+    </div>
+
+
+    <button @onclick="StartGame">Start New Game</button>
+}
+
+<div id="gameContainer" style="width: 600px; height: 400px; border: 1px solid black;"></div>
+
+@code {
+    private bool gameStarted = false;
+    private bool squaresHaveSettled = false;
+    private bool awaitingUserGuess = false;
+    private int numberOfSquares = 0;
+    private int userGuess = 50;
+    private string feedbackMessage = "";
+    private bool showUI = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("initializePhysics", "gameContainer");
+            ShowUIAfterDelay(); // Show the UI after a delay
+        }
+    }
+
+    private async Task StartGame()
+    {
+        showUI = false; // Hide the UI
+
+        gameStarted = true;
+        squaresHaveSettled = false;
+        awaitingUserGuess = false;
+        feedbackMessage = "";
+
+        // Clear all squares
+        await JSRuntime.InvokeVoidAsync("clearSquares");
+
+        numberOfSquares = new Random().Next(50, 101); // Randomly choose between 50 to 100 squares
+        await JSRuntime.InvokeVoidAsync("generateSquares", numberOfSquares);
+
+        // Assume squares have settled after a delay (simplified approach)
+
+
+
+        squaresHaveSettled = true;
+        awaitingUserGuess = true;
+
+        ShowUIAfterDelay(); // Show the UI after a delay
+
+    }
+
+    private async void ShowUIAfterDelay()
+    {
+        await Task.Delay(3000); // Delay for 3 seconds
+        showUI = true;
+        StateHasChanged(); // Trigger a re-render
+    }
+
+    private void SubmitGuess()
+    {
+        awaitingUserGuess = false;
+        if (userGuess == numberOfSquares)
+        {
+            feedbackMessage = "Correct! Well done.";
+        }
+        else
+        {
+            feedbackMessage = $"Incorrect. There were {numberOfSquares} squares.";
+        }
+
+        showUI = false; // Add this line to hide the UI
+    }
+
+    [JSInvokable]
+    public static Task NotifySquaresSettled()
+    {
+        // This method should be invoked from JavaScript to notify when squares have settled
+        // Implementation details depend on your game's logic and state management
+        return Task.CompletedTask;
+    }
+}
